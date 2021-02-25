@@ -20,11 +20,11 @@ import android.graphics.Matrix;
 import android.graphics.Matrix.ScaleToFit;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
+import android.util.DisplayMetrics;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnLongClickListener;
-import android.view.ViewConfiguration;
 import android.view.ViewParent;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.Interpolator;
@@ -43,7 +43,7 @@ public class PhotoViewAttacher implements View.OnTouchListener,
     private static float DEFAULT_MAX_SCALE = 3.0f;
     private static float DEFAULT_MID_SCALE = 1.75f;
     private static float DEFAULT_MIN_SCALE = 1.0f;
-    private static float DEFAULT_MIN_SWIPE_THRESHOLD = 1000.0f;
+    private static float DEFAULT_MIN_CLOSE_THRESHOLD = 1000.0f;
     private static int DEFAULT_ZOOM_DURATION = 200;
 
     private static final int HORIZONTAL_EDGE_NONE = -1;
@@ -55,13 +55,14 @@ public class PhotoViewAttacher implements View.OnTouchListener,
     private static final int VERTICAL_EDGE_BOTTOM = 1;
     private static final int VERTICAL_EDGE_BOTH = 2;
     private static int SINGLE_TOUCH = 1;
+    private static final float SWIPE_THRESHOLD = 25;
 
     private Interpolator mInterpolator = new AccelerateDecelerateInterpolator();
     private int mZoomDuration = DEFAULT_ZOOM_DURATION;
     private float mMinScale = DEFAULT_MIN_SCALE;
     private float mMidScale = DEFAULT_MID_SCALE;
     private float mMaxScale = DEFAULT_MAX_SCALE;
-    private float mSwipeMinThreshold = DEFAULT_MIN_SWIPE_THRESHOLD;
+    private float mMinCloseThreshold = DEFAULT_MIN_CLOSE_THRESHOLD;
 
     private boolean mAllowParentInterceptOnEdge = true;
     private boolean mBlockParentIntercept = false;
@@ -416,12 +417,12 @@ public class PhotoViewAttacher implements View.OnTouchListener,
         mMaxScale = maximumScale;
     }
 
-    public float getMinSwipeThreshold() {
-        return mSwipeMinThreshold;
+    public float getMinCloseThreshold() {
+        return mMinCloseThreshold;
     }
 
-    public void setMinSwipeThreshold(float minSwipeThreshold) {
-        mSwipeMinThreshold = minSwipeThreshold;
+    public void setMinCloseThreshold(float minCloseThreshold) {
+        mMinCloseThreshold = minCloseThreshold;
     }
 
     public void setScaleLevels(float minimumScale, float mediumScale, float maximumScale) {
@@ -754,13 +755,13 @@ public class PhotoViewAttacher implements View.OnTouchListener,
                 case MotionEvent.ACTION_MOVE:
                     float delta = ev.getRawY() - (Float) v.getTag();
                     // If the delta is MinimumFlingVelocity or less, it will not move
-                    if (Math.abs(delta) > ViewConfiguration.get(v.getContext()).getScaledMinimumFlingVelocity()) {
+                    if (Math.abs(delta) > convertDp2Px(SWIPE_THRESHOLD, v.getContext())) {
                         v.setTranslationY(delta);
                         mOnSwipeCloseListener.onProgress(delta);
                     }
                     break;
                 case MotionEvent.ACTION_UP:
-                    if (Math.abs(v.getTranslationY()) > mSwipeMinThreshold) {
+                    if (Math.abs(v.getTranslationY()) > mMinCloseThreshold) {
                         mOnSwipeCloseListener.onFinish();
                     } else {
                         mOnSwipeCloseListener.onCancel();
@@ -768,6 +769,11 @@ public class PhotoViewAttacher implements View.OnTouchListener,
                     break;
             }
         }
+    }
+
+    private float convertDp2Px(float dp, Context context) {
+        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+        return dp * metrics.density;
     }
 
     private class AnimatedZoomRunnable implements Runnable {
